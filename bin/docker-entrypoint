@@ -1,0 +1,6 @@
+#!/bin/bash -e
+
+# Database migrations are handled by the Kubernetes PreSync job (job-db-migrate.yaml).
+# Do not run db:prepare here to avoid race conditions with multiple replicas.
+
+exec "${@}"

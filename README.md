@@ -1,15 +1,15 @@
 # Error Dashboard
 
-Self-hosted error monitoring for [GetOnBrd](https://www.getonbrd.com), powered by [rails_error_dashboard](https://github.com/AnjanJ/rails_error_dashboard).
+A self-hosted error monitoring app powered by [rails_error_dashboard](https://github.com/AnjanJ/rails_error_dashboard).
 
-A standalone Rails 8 app that collects, aggregates, and displays application errors — replacing SaaS error tracking with a solution we fully own and control.
+A standalone Rails 8 app that collects, aggregates, and displays application errors — replacing SaaS error tracking with a solution you fully own and control.
 
 ## Architecture
 
 ```
 ┌──────────────┐   POST /api/v1/errors   ┌──────────────────┐     ┌────────────┐
-│  GetOnBrd    │ ───────────────────────► │  Error Dashboard │────►│  Postgres  │
-│  Rails app   │     Bearer token auth    │  Rails 8 + gem   │     │  (CNPG)    │
+│  Your app    │ ───────────────────────► │  Error Dashboard │────►│  Postgres  │
+│              │     Bearer token auth    │  Rails 8 + gem   │     │            │
 └──────────────┘                          └──────────────────┘     └────────────┘
                                             │
                                             ├── /error_dashboard  (Web UI)
@@ -26,11 +26,9 @@ A standalone Rails 8 app that collects, aggregates, and displays application err
 | Component | Technology |
 |-----------|-----------|
 | Runtime | Ruby 3.4, Rails 8.1 |
-| Database | PostgreSQL 17 (CloudNativePG) |
+| Database | PostgreSQL |
 | Job backend | Solid Queue |
 | Error engine | [rails_error_dashboard](https://github.com/AnjanJ/rails_error_dashboard) |
-| Deployment | Kubernetes (Hetzner), ArgoCD, Helm |
-| CI | GitHub Actions → Docker Hub |
 
 ## API
 
@@ -39,7 +37,7 @@ A standalone Rails 8 app that collects, aggregates, and displays application err
 Submit a single error report.
 
 ```bash
-curl -X POST https://error-dashboard.getonbrd.com/api/v1/errors \
+curl -X POST https://your-dashboard.example.com/api/v1/errors \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -49,7 +47,7 @@ curl -X POST https://error-dashboard.getonbrd.com/api/v1/errors \
       "backtrace": ["app/models/user.rb:42:in `process`"],
       "severity": "error",
       "platform": "ruby",
-      "source": "getonbrd",
+      "source": "my-app",
       "app_version": "sha-abc123",
       "user_id": "42",
       "request_url": "/jobs/123",
@@ -66,7 +64,7 @@ curl -X POST https://error-dashboard.getonbrd.com/api/v1/errors \
 Submit multiple errors in one request.
 
 ```bash
-curl -X POST https://error-dashboard.getonbrd.com/api/v1/errors/batch \
+curl -X POST https://your-dashboard.example.com/api/v1/errors/batch \
   -H "Authorization: Bearer <token>" \
   -H "Content-Type: application/json" \
   -d '{"errors": [{"error_type": "...", "message": "..."}, ...]}'
@@ -76,7 +74,9 @@ curl -X POST https://error-dashboard.getonbrd.com/api/v1/errors/batch \
 
 Returns `200 OK` with `{"status": "ok"}` when the app and database are healthy.
 
-## Local development
+## Setup
+
+### Local development
 
 ```bash
 # Prerequisites: Ruby 3.4, PostgreSQL
@@ -87,6 +87,27 @@ bin/dev
 ```
 
 The dashboard will be available at `http://localhost:3000/error_dashboard` with default credentials `admin` / `changeme`.
+
+### Docker
+
+```bash
+docker build -t error-dashboard .
+docker run -d -p 80:80 \
+  -e DATABASE_URL="postgres://user:pass@host/dbname" \
+  -e SECRET_KEY_BASE="$(openssl rand -hex 64)" \
+  -e API_BEARER_TOKEN="$(openssl rand -hex 32)" \
+  -e DASHBOARD_USERNAME="admin" \
+  -e DASHBOARD_PASSWORD="your-secure-password" \
+  error-dashboard
+```
+
+### Kubernetes
+
+Deploy with any Kubernetes setup. A Helm chart example is provided in the repo wiki (or adapt to your own cluster tooling). The app needs:
+
+- A PostgreSQL instance (for errors + Solid Queue)
+- The environment variables listed below
+- A single pod running the Rails server
 
 ## Configuration
 
@@ -102,16 +123,6 @@ All configuration is via environment variables:
 | `RAILS_MAX_THREADS` | Puma thread count | `3` |
 | `RAILS_LOG_LEVEL` | Log level | `info` |
 | `PORT` | Server port | `80` |
-
-## Deployment
-
-This app is deployed to our Kubernetes cluster via ArgoCD. The Helm chart lives in the [k8s-cluster](https://github.com/getonbrd/k8s-cluster) repo under `applications/error-dashboard/`.
-
-```bash
-# Build and push image manually (CI does this on push to main)
-docker build -t docker.io/getonbrd/error-dashboard:sha-$(git rev-parse --short HEAD) .
-docker push docker.io/getonbrd/error-dashboard:sha-$(git rev-parse --short HEAD)
-```
 
 ## License
 

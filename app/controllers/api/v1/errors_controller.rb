@@ -6,13 +6,8 @@ module Api
       before_action :authenticate_bearer_token!
 
       def create
-        result = report_error(error_params)
-
-        if result
-          render json: { id: result.id }, status: :created
-        else
-          render json: { error: "Failed to log error" }, status: :unprocessable_entity
-        end
+        report_error(error_params)
+        render json: { status: "accepted" }, status: :created
       end
 
       def batch

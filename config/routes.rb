@@ -1,5 +1,6 @@
 Rails.application.routes.draw do
   mount RailsErrorDashboard::Engine, at: "/error_dashboard"
+  mount MissionControl::Jobs::Engine, at: "/jobs"
 
   namespace :api do
     namespace :v1 do

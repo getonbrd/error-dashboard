@@ -29,6 +29,8 @@ end
 # model and belongs_to association. Since this is a standalone app with no User
 # model, we add a no-op method so it returns nil gracefully.
 Rails.application.config.after_initialize do
+  next unless defined?(RailsErrorDashboard::ErrorLog)
+
   RailsErrorDashboard::ErrorLog.class_eval do
     def user
       nil
@@ -36,9 +38,8 @@ Rails.application.config.after_initialize do
 
     # Use app_version (e.g. "sha-abc1234") as git_sha for "View Source" links
     # when git_sha isn't set directly by the gem.
-    alias_method :original_git_sha, :git_sha
     def git_sha
-      original_git_sha.presence || app_version&.delete_prefix("sha-")
+      super.presence || app_version&.delete_prefix("sha-")
     end
   end
 end

@@ -13,6 +13,12 @@ RailsErrorDashboard.configure do |config|
 
   config.application_name = "getonbrd"
 
+  config.enable_source_code_integration = true
+  config.git_repository_url = "https://github.com/getonbrd/getonbrd"
+  config.git_sha = ENV["GIT_SHA"]
+  config.source_code_context_lines = 10
+  config.only_show_app_code_source = true
+
   config.enable_slack_notifications = ENV["SLACK_WEBHOOK_URL"].present?
   config.slack_webhook_url = ENV["SLACK_WEBHOOK_URL"]
   config.dashboard_base_url = ENV.fetch("DASHBOARD_BASE_URL", "https://error-dashboard.getonbrd.com")
@@ -26,6 +32,13 @@ Rails.application.config.after_initialize do
   RailsErrorDashboard::ErrorLog.class_eval do
     def user
       nil
+    end
+
+    # Use app_version (e.g. "sha-abc1234") as git_sha for "View Source" links
+    # when git_sha isn't set directly by the gem.
+    alias_method :original_git_sha, :git_sha
+    def git_sha
+      original_git_sha.presence || app_version&.delete_prefix("sha-")
     end
   end
 end

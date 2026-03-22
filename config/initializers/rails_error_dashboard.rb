@@ -47,8 +47,14 @@ Rails.application.config.after_initialize do
   # and add "Resolve" button
   RailsErrorDashboard::Services::SlackPayloadBuilder.class_eval do
     class << self
-      def context_block(_error_log)
-        nil
+      def context_block(error_log)
+        url = RailsErrorDashboard::NotificationHelpers.dashboard_url(error_log)
+        {
+          type: "context",
+          elements: [
+            { type: "mrkdwn", text: "<#{url}>" }
+          ]
+        }
       end
 
       alias_method :original_actions_block, :actions_block

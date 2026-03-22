@@ -48,7 +48,7 @@ Rails.application.config.after_initialize do
   RailsErrorDashboard::Services::SlackPayloadBuilder.class_eval do
     class << self
       def context_block(error_log)
-        url = RailsErrorDashboard::NotificationHelpers.dashboard_url(error_log)
+        url = RailsErrorDashboard::Services::NotificationHelpers.dashboard_url(error_log)
         {
           type: "context",
           elements: [

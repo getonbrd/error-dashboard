@@ -59,25 +59,28 @@ class SlackInteractionsController < ApplicationController
     head :ok
   end
 
-  # Verify the request came from Slack using signing secret
+  # Verify the request came from Slack using signing secret.
+  # Slack sends interactions as form-encoded (payload=...), so we must
+  # read the raw body before Rails parses it.
   def verify_slack_signature
     signing_secret = ENV["SLACK_SIGNING_SECRET"]
     return head :unauthorized unless signing_secret
 
     timestamp = request.headers["X-Slack-Request-Timestamp"]
-    return head :unauthorized if timestamp.blank?
+    slack_signature = request.headers["X-Slack-Signature"]
+    return head :unauthorized if timestamp.blank? || slack_signature.blank?
 
     # Reject requests older than 5 minutes (replay protection)
     return head :unauthorized if (Time.now.to_i - timestamp.to_i).abs > 300
 
-    body = request.body.read
-    request.body.rewind
+    # Use request.raw_post which works even after Rails has parsed params
+    raw_body = request.raw_post
 
-    sig_basestring = "v0:#{timestamp}:#{body}"
+    sig_basestring = "v0:#{timestamp}:#{raw_body}"
     my_signature = "v0=#{OpenSSL::HMAC.hexdigest("SHA256", signing_secret, sig_basestring)}"
-    slack_signature = request.headers["X-Slack-Signature"]
 
-    unless ActiveSupport::SecurityUtils.secure_compare(my_signature, slack_signature.to_s)
+    unless ActiveSupport::SecurityUtils.secure_compare(my_signature, slack_signature)
+      Rails.logger.warn("[SlackInteractions] Signature mismatch")
       head :unauthorized
     end
   end

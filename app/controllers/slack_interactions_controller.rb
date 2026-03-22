@@ -38,27 +38,22 @@ class SlackInteractionsController < ApplicationController
 
     user_name = payload.dig("user", "name") || "Someone"
 
-    # Replace the Resolve button with a resolved indicator in the same row
+    # Replace the Resolve button with View Details only + resolved label below
     original_blocks = payload.dig("message", "blocks") || []
-    updated_blocks = original_blocks.map do |block|
+    updated_blocks = original_blocks.flat_map do |block|
       if block["type"] == "actions"
         view_button = block["elements"]&.select { |e| e["url"].present? } || []
-        {
-          type: "actions",
-          elements: view_button + [
-            {
-              type: "button",
-              text: {
-                type: "plain_text",
-                text: ":white_check_mark: Resolved by #{user_name}",
-                emoji: true
-              },
-              action_id: "resolved_info_#{error_id}"
-            }
-          ]
-        }
+        [
+          { type: "actions", elements: view_button },
+          {
+            type: "context",
+            elements: [
+              { type: "mrkdwn", text: ":white_check_mark: *Resolved* by #{user_name}" }
+            ]
+          }
+        ]
       else
-        block
+        [block]
       end
     end
 

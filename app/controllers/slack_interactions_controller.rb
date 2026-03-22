@@ -53,15 +53,13 @@ class SlackInteractionsController < ApplicationController
       end
     end
 
-    # Add resolved context at the bottom
+    # Add resolved indicator at the bottom
     updated_blocks << {
-      type: "context",
-      elements: [
-        {
-          type: "mrkdwn",
-          text: "Resolved by #{user_name}"
-        }
-      ]
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: ":white_check_mark: *Resolved* by #{user_name}"
+      }
     }
 
     replace_original_message(payload, updated_blocks)

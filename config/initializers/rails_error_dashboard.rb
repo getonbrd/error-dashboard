@@ -47,6 +47,37 @@ Rails.application.config.after_initialize do
   # and add "Resolve" button
   RailsErrorDashboard::Services::SlackPayloadBuilder.class_eval do
     class << self
+      # Show error type as header instead of generic "Error Alert"
+      def call(error_log)
+        {
+          text: "#{error_log.error_type}: #{error_log.message&.truncate(100)}",
+          blocks: [
+            header_block(error_log),
+            fields_block(error_log),
+            message_block(error_log),
+            user_block(error_log),
+            request_block(error_log),
+            actions_block(error_log),
+            context_block(error_log)
+          ].compact
+        }
+      end
+
+      def header_block(error_log = nil)
+        {
+          type: "header",
+          text: {
+            type: "plain_text",
+            text: ":rotating_light: #{error_log&.error_type || 'Error'}",
+            emoji: true
+          }
+        }
+      end
+
+      def fields_block(_error_log)
+        nil
+      end
+
       def context_block(error_log)
         url = RailsErrorDashboard::Services::NotificationHelpers.dashboard_url(error_log)
         {

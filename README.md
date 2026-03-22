@@ -7,7 +7,7 @@ A standalone Rails 8 app that collects, aggregates, and displays application err
 ## Architecture
 
 ```
-┌──────────────┐   POST /api/v1/errors   ┌──────────────────┐     ┌────────────┐
+┌──────────────┐   POST /api/v1/errors    ┌──────────────────┐     ┌────────────┐
 │  Your app    │ ───────────────────────► │  Error Dashboard │────►│  Postgres  │
 │              │     Bearer token auth    │  Rails 8 + gem   │     │            │
 └──────────────┘                          └──────────────────┘     └────────────┘

@@ -42,4 +42,32 @@ Rails.application.config.after_initialize do
       super.presence || app_version&.delete_prefix("sha-")
     end
   end
+
+  # Add "Resolve" button to Slack notifications
+  RailsErrorDashboard::Services::SlackPayloadBuilder.class_eval do
+    class << self
+      alias_method :original_actions_block, :actions_block
+
+      def actions_block(error_log)
+        block = original_actions_block(error_log)
+        block[:elements] << {
+          type: "button",
+          text: {
+            type: "plain_text",
+            text: "Resolve",
+            emoji: true
+          },
+          action_id: "resolve_error_#{error_log.id}",
+          style: "danger",
+          confirm: {
+            title: { type: "plain_text", text: "Resolve error?" },
+            text: { type: "mrkdwn", text: "Mark *#{error_log.error_type}* as resolved?" },
+            confirm: { type: "plain_text", text: "Resolve" },
+            deny: { type: "plain_text", text: "Cancel" }
+          }
+        }
+        block
+      end
+    end
+  end
 end

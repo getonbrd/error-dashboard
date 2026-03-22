@@ -11,6 +11,8 @@ Rails.application.routes.draw do
     end
   end
 
+  post "slack/interactions", to: "slack_interactions#create"
+
   get "health", to: "health#show"
   get "up" => "rails/health#show", as: :rails_health_check
 end

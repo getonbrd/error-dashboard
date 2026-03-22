@@ -36,7 +36,8 @@ class SlackInteractionsController < ApplicationController
 
     error.update!(resolved: true, resolved_at: Time.current)
 
-    user_name = payload.dig("user", "name") || "Someone"
+    username = payload.dig("user", "username") || "someone"
+    user_mention = "@#{username}"
 
     # Replace the Resolve button with View Details only + resolved label below
     original_blocks = payload.dig("message", "blocks") || []
@@ -48,7 +49,7 @@ class SlackInteractionsController < ApplicationController
           {
             type: "context",
             elements: [
-              { type: "mrkdwn", text: ":white_check_mark: *Resolved* by #{user_name}" }
+              { type: "mrkdwn", text: ":white_check_mark: *Resolved* by #{user_mention}" }
             ]
           }
         ]

@@ -47,15 +47,14 @@ Rails.application.config.after_initialize do
   # and add "Resolve" button
   RailsErrorDashboard::Services::SlackPayloadBuilder.class_eval do
     class << self
-      # Show error type as header instead of generic "Error Alert"
       def call(error_log)
         {
           text: "#{error_log.error_type}: #{error_log.message&.truncate(100)}",
           blocks: [
             header_block(error_log),
-            fields_block(error_log),
+            info_block(error_log),
             message_block(error_log),
-            user_block(error_log),
+            stacktrace_block(error_log),
             request_block(error_log),
             actions_block(error_log),
             context_block(error_log)
@@ -64,18 +63,55 @@ Rails.application.config.after_initialize do
       end
 
       def header_block(error_log = nil)
+        severity_emoji = severity_circle(error_log)
         {
           type: "header",
           text: {
             type: "plain_text",
-            text: ":rotating_light: #{error_log&.error_type || 'Error'}",
+            text: "#{severity_emoji} #{error_log&.error_type || 'Error'}",
             emoji: true
           }
         }
       end
 
+      # Occurrences, user status, severity in one compact line
+      def info_block(error_log)
+        parts = []
+        parts << ":repeat: *#{error_log.occurrence_count}x*" if error_log.occurrence_count > 1
+        parts << (error_log.user_id.present? ? ":bust_in_silhouette: User ##{error_log.user_id}" : ":ghost: Anonymous")
+        {
+          type: "context",
+          elements: [{ type: "mrkdwn", text: parts.join("  ·  ") }]
+        }
+      end
+
+      # First line of the stacktrace
+      def stacktrace_block(error_log)
+        first_line = error_log.backtrace&.find { |l| l.include?("app/") } || error_log.backtrace&.first
+        return nil unless first_line.present?
+
+        {
+          type: "section",
+          text: { type: "mrkdwn", text: "*Stacktrace:*\n`#{first_line.truncate(200)}`" }
+        }
+      end
+
       def fields_block(_error_log)
         nil
+      end
+
+      # Hide the gem's user block — we show user info in info_block
+      def user_block(_error_log)
+        nil
+      end
+
+      def severity_circle(error_log)
+        case error_log.priority_level.to_i
+        when 3..Float::INFINITY then ":red_circle:"
+        when 2 then ":large_orange_circle:"
+        when 1 then ":yellow_circle:"
+        else ":white_circle:"
+        end
       end
 
       def context_block(error_log)

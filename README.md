@@ -13,13 +13,17 @@ A standalone Rails 8 app that collects, aggregates, and displays application err
 └──────────────┘                          └──────────────────┘     └────────────┘
                                             │
                                             ├── /error_dashboard  (Web UI)
-                                            ├── /api/v1/errors    (Ingestion API)
+                                            ├── /api/v1/errors    (REST API)
                                             └── /health           (Health check)
 ```
 
 - **Web UI**: Browse, filter, resolve, and assign errors. Protected by HTTP Basic Auth.
-- **Ingestion API**: Accepts error reports from external apps via Bearer token.
+- **REST API**: Ingest and read errors via Bearer token auth.
+- **Slack**: Notifications with severity indicators, occurrence counts, and interactive Resolve button.
+- **Source code**: "View Source" links to the exact file/line on GitHub.
 - **Async processing**: Solid Queue (backed by the same Postgres — no Redis needed).
+- **Deduplication**: Errors are grouped by hash — recurring errors increment the count, not create duplicates.
+- **Retention**: Automatic cleanup of errors older than the configured retention period (default 90 days).
 
 ## Stack
 
@@ -32,7 +36,11 @@ A standalone Rails 8 app that collects, aggregates, and displays application err
 
 ## API
 
-### `POST /api/v1/errors`
+All endpoints require `Authorization: Bearer <token>`.
+
+### Ingest
+
+#### `POST /api/v1/errors`
 
 Submit a single error report.
 
@@ -59,7 +67,7 @@ curl -X POST https://your-dashboard.example.com/api/v1/errors \
   }'
 ```
 
-### `POST /api/v1/errors/batch`
+#### `POST /api/v1/errors/batch`
 
 Submit multiple errors in one request.
 
@@ -70,9 +78,42 @@ curl -X POST https://your-dashboard.example.com/api/v1/errors/batch \
   -d '{"errors": [{"error_type": "...", "message": "..."}, ...]}'
 ```
 
+### Read
+
+#### `GET /api/v1/errors`
+
+List errors (paginated). Supports filters: `error_type`, `platform`, `resolved`, `priority_level`, `page`, `per_page`.
+
+```bash
+curl https://your-dashboard.example.com/api/v1/errors?error_type=NoMethodError&page=1 \
+  -H "Authorization: Bearer <token>"
+```
+
+#### `GET /api/v1/errors/:id`
+
+Error detail with backtrace, request params, and git SHA.
+
 ### `GET /health`
 
-Returns `200 OK` with `{"status": "ok"}` when the app and database are healthy.
+Returns `200 OK` with `{"status": "ok"}` when the app and database are healthy. No auth required.
+
+## Slack Integration
+
+Error notifications are sent to Slack with:
+- Severity indicator (red/orange/yellow/white circle)
+- Error type as the header
+- Occurrence count for recurring errors
+- First app stacktrace line
+- Authenticated user or anonymous indicator
+- Request URL (when available)
+- **Resolve** button with confirmation dialog
+- Link to the error in the dashboard
+
+Configure via `SLACK_WEBHOOK_URL` and `SLACK_SIGNING_SECRET` env vars. Interactivity must be enabled in your Slack app settings with the Request URL pointing to `/slack/interactions`.
+
+## Source Code Integration
+
+Backtrace frames link to the exact file and line on GitHub. Configure `git_repository_url` in the initializer. The git SHA is derived from the `app_version` field sent with each error (e.g. `sha-abc1234`).
 
 ## Setup
 
@@ -103,7 +144,7 @@ docker run -d -p 80:80 \
 
 ### Kubernetes
 
-Deploy with any Kubernetes setup. A Helm chart example is provided in the repo wiki (or adapt to your own cluster tooling). The app needs:
+Deploy with any Kubernetes setup. The app needs:
 
 - A PostgreSQL instance (for errors + Solid Queue)
 - The environment variables listed below
@@ -120,6 +161,8 @@ All configuration is via environment variables:
 | `API_BEARER_TOKEN` | Token for the ingestion API | — |
 | `DASHBOARD_USERNAME` | Dashboard HTTP Basic Auth user | `admin` |
 | `DASHBOARD_PASSWORD` | Dashboard HTTP Basic Auth password | `changeme` |
+| `SLACK_WEBHOOK_URL` | Slack incoming webhook URL (enables notifications) | — |
+| `SLACK_SIGNING_SECRET` | Slack app signing secret (for interactive buttons) | — |
 | `RAILS_MAX_THREADS` | Puma thread count | `3` |
 | `RAILS_LOG_LEVEL` | Log level | `info` |
 | `PORT` | Server port | `80` |

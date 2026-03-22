@@ -99,11 +99,17 @@ module Api
           user_agent: permitted_params[:user_agent],
           ip_address: permitted_params[:ip_address],
           app_version: permitted_params[:app_version],
-          metadata: permitted_params[:metadata]&.to_h,
+          metadata: sanitize_metadata(permitted_params[:metadata]),
           occurred_at: permitted_params[:occurred_at],
           severity: permitted_params[:severity]&.to_sym,
           source: permitted_params[:source]
         )
+      end
+
+      def sanitize_metadata(metadata)
+        return nil if metadata.blank?
+
+        metadata.to_h.except("_aj_serialized", "_aj_symbol_keys", "_aj_hash_with_indifferent_access")
       end
     end
   end

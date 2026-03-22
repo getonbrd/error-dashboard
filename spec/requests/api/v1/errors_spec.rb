@@ -32,6 +32,88 @@ RSpec.describe "Api::V1::Errors", type: :request do
     allow(ENV).to receive(:fetch).with("API_BEARER_TOKEN").and_return(token)
   end
 
+  describe "GET /api/v1/errors" do
+    before do
+      allow(RailsErrorDashboard::ManualErrorReporter).to receive(:report).and_return(nil)
+    end
+
+    let!(:application) { RailsErrorDashboard::Application.find_or_create_by!(name: "getonbrd") }
+    let!(:error_log) do
+      RailsErrorDashboard::ErrorLog.create!(
+        error_type: "TestError",
+        message: "test message",
+        backtrace: ["app/test.rb:1"],
+        platform: "ruby",
+        app_version: "sha-abc1234",
+        application: application,
+        occurred_at: Time.current,
+        first_seen_at: Time.current,
+        last_seen_at: Time.current,
+        occurrence_count: 1,
+        error_hash: SecureRandom.hex(16)
+      )
+    end
+
+    it "returns paginated errors" do
+      get "/api/v1/errors", headers: headers
+
+      expect(response).to have_http_status(:ok)
+      body = JSON.parse(response.body)
+      expect(body["errors"].length).to be >= 1
+      expect(body["meta"]["page"]).to eq(1)
+      expect(body["meta"]["total"]).to be >= 1
+    end
+
+    it "filters by error_type" do
+      get "/api/v1/errors", params: { error_type: "TestError" }, headers: headers
+
+      body = JSON.parse(response.body)
+      expect(body["errors"].all? { |e| e["error_type"] == "TestError" }).to be true
+    end
+
+    it "requires authentication" do
+      get "/api/v1/errors", headers: { "Content-Type" => "application/json" }
+      expect(response).to have_http_status(:unauthorized)
+    end
+  end
+
+  describe "GET /api/v1/errors/:id" do
+    let!(:application) { RailsErrorDashboard::Application.find_or_create_by!(name: "getonbrd") }
+    let!(:error_log) do
+      RailsErrorDashboard::ErrorLog.create!(
+        error_type: "DetailError",
+        message: "detailed test",
+        backtrace: ["app/test.rb:1"],
+        platform: "ruby",
+        application: application,
+        occurred_at: Time.current,
+        first_seen_at: Time.current,
+        last_seen_at: Time.current,
+        occurrence_count: 1,
+        error_hash: SecureRandom.hex(16)
+      )
+    end
+
+    it "returns error details with backtrace" do
+      get "/api/v1/errors/#{error_log.id}", headers: headers
+
+      expect(response).to have_http_status(:ok)
+      body = JSON.parse(response.body)["error"]
+      expect(body["error_type"]).to eq("DetailError")
+      expect(body["backtrace"]).to be_present
+    end
+
+    it "returns 404 for missing error" do
+      get "/api/v1/errors/99999", headers: headers
+      expect(response).to have_http_status(:not_found)
+    end
+
+    it "requires authentication" do
+      get "/api/v1/errors/#{error_log.id}", headers: { "Content-Type" => "application/json" }
+      expect(response).to have_http_status(:unauthorized)
+    end
+  end
+
   describe "POST /api/v1/errors" do
     context "with valid token" do
       it "returns 201 accepted" do

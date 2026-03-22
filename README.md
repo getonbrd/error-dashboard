@@ -25,6 +25,20 @@ A standalone Rails 8 app that collects, aggregates, and displays application err
 - **Deduplication**: Errors are grouped by hash — recurring errors increment the count, not create duplicates.
 - **Retention**: Automatic cleanup of errors older than the configured retention period (default 90 days).
 
+## Documentation
+
+For detailed guides on every feature, see the [docs/](docs/) folder:
+
+1. [Overview](docs/01-overview.md) — Architecture and feature summary
+2. [Getting Started](docs/02-getting-started.md) — Deploy and set up
+3. [Client Integration Guide](docs/03-client-integration.md) — Send errors from your Rails app
+4. [API Reference](docs/04-api-reference.md) — Endpoint details and payload schema
+5. [Slack Integration](docs/05-slack-integration.md) — Notifications and interactive actions
+6. [Source Code Integration](docs/06-source-code-integration.md) — GitHub links from backtraces
+7. [Error Deduplication & Grouping](docs/07-deduplication.md) — How errors are grouped
+8. [Retention & Cleanup](docs/08-retention.md) — Automatic error cleanup
+9. [Customization](docs/10-customization.md) — Extending the dashboard
+
 ## Stack
 
 | Component | Technology |

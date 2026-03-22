@@ -115,6 +115,17 @@ Rails.application.config.after_initialize do
         nil
       end
 
+      # Hide request URL when it's just the source name (no real URL)
+      def request_block(error_log)
+        url = error_log.request_url
+        return nil if url.blank? || !url.start_with?("/", "http")
+
+        {
+          type: "section",
+          text: { type: "mrkdwn", text: "*Request:* `#{RailsErrorDashboard::Services::NotificationHelpers.truncate_message(url, 200)}`" }
+        }
+      end
+
       def severity_circle(error_log)
         case error_log.priority_level.to_i
         when 3..Float::INFINITY then ":red_circle:"

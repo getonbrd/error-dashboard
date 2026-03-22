@@ -36,13 +36,38 @@ class SlackInteractionsController < ApplicationController
 
     error.update!(resolved: true, resolved_at: Time.current)
 
-    # Update the original Slack message to show it's resolved
     user_name = payload.dig("user", "name") || "Someone"
-    respond_to_slack(payload, "Resolved by #{user_name}.")
+
+    # Replace the original message: swap the Resolve button with a resolved indicator
+    original_blocks = payload.dig("message", "blocks") || []
+    updated_blocks = original_blocks.map do |block|
+      if block["type"] == "actions"
+        # Keep only the "View Details" button (the one with a url), remove Resolve
+        view_button = block["elements"]&.select { |e| e["url"].present? } || []
+        {
+          type: "actions",
+          elements: view_button
+        }
+      else
+        block
+      end
+    end
+
+    # Add resolved context at the bottom
+    updated_blocks << {
+      type: "context",
+      elements: [
+        {
+          type: "mrkdwn",
+          text: "Resolved by #{user_name}"
+        }
+      ]
+    }
+
+    replace_original_message(payload, updated_blocks)
   end
 
-  # Respond by updating the original Slack message
-  def respond_to_slack(payload, text)
+  def replace_original_message(payload, blocks)
     response_url = payload["response_url"]
     return head :ok unless response_url
 
@@ -53,8 +78,8 @@ class SlackInteractionsController < ApplicationController
     request = Net::HTTP::Post.new(uri.path)
     request["Content-Type"] = "application/json"
     request.body = {
-      replace_original: false,
-      text: text
+      replace_original: true,
+      blocks: blocks
     }.to_json
 
     http.request(request)

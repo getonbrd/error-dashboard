@@ -12,4 +12,9 @@ RailsErrorDashboard.configure do |config|
   config.max_backtrace_lines = 100
 
   config.application_name = "getonbrd"
+
+  config.enable_slack_notifications = ENV["SLACK_WEBHOOK_URL"].present?
+  config.slack_webhook_url = ENV["SLACK_WEBHOOK_URL"]
+  config.dashboard_base_url = ENV.fetch("DASHBOARD_BASE_URL", "https://error-dashboard.getonbrd.com")
+  config.notification_cooldown_minutes = 15
 end

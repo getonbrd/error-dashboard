@@ -43,9 +43,14 @@ Rails.application.config.after_initialize do
     end
   end
 
-  # Add "Resolve" button to Slack notifications
+  # Remove "Error ID:" context block from Slack notifications
+  # and add "Resolve" button
   RailsErrorDashboard::Services::SlackPayloadBuilder.class_eval do
     class << self
+      def context_block(_error_log)
+        nil
+      end
+
       alias_method :original_actions_block, :actions_block
 
       def actions_block(error_log)

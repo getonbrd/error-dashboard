@@ -115,6 +115,136 @@ Configure via `SLACK_WEBHOOK_URL` and `SLACK_SIGNING_SECRET` env vars. Interacti
 
 Backtrace frames link to the exact file and line on GitHub. Configure `git_repository_url` in the initializer. The git SHA is derived from the `app_version` field sent with each error (e.g. `sha-abc1234`).
 
+## Client Integration
+
+To send errors from your Rails app to the dashboard, add these three files and configure the environment variables.
+
+### 1. Rack Middleware (automatic capture)
+
+Catches all unhandled exceptions at the Rack level — controllers, middleware, etc.
+
+```ruby
+# app/middleware/error_dashboard_middleware.rb
+class ErrorDashboardMiddleware
+  def initialize(app)
+    @app = app
+  end
+
+  def call(env)
+    request = ActionDispatch::Request.new(env)
+    Thread.current[:error_dashboard_request_url] = request.original_url
+    Thread.current[:error_dashboard_ip_address] = safe_remote_ip(request)
+    Thread.current[:error_dashboard_user_agent] = request.user_agent
+
+    @app.call(env)
+  rescue Exception => e # rubocop:disable Lint/RescueException
+    notify(e, request, env)
+    raise
+  ensure
+    Thread.current[:error_dashboard_request_url] = nil
+    Thread.current[:error_dashboard_ip_address] = nil
+    Thread.current[:error_dashboard_user_agent] = nil
+  end
+
+  private def notify(error, request, env)
+    return unless ENV["ERROR_DASHBOARD_ENABLED"] == "true"
+
+    ErrorDashboardWorker.perform_async(
+      "error_type" => error.class.name,
+      "message" => error.message,
+      "backtrace" => Array(error.backtrace).first(50),
+      "severity" => "error",
+      "source" => "my-app",
+      "platform" => "ruby",
+      "app_version" => ENV["IMAGE_TAG"] || ENV["HEROKU_SLUG_COMMIT"]&.slice(0, 7)&.then { "sha-#{_1}" } || "unknown",
+      "request_url" => request.original_url,
+      "ip_address" => safe_remote_ip(request),
+      "user_agent" => request.user_agent,
+      "metadata" => {
+        "http_method" => request.method,
+        "controller" => env["action_dispatch.request.path_parameters"]&.dig(:controller),
+        "action" => env["action_dispatch.request.path_parameters"]&.dig(:action)
+      }
+    )
+  rescue StandardError => e
+    Rails.logger.error("[ErrorDashboardMiddleware] Failed: #{e.message}")
+  end
+
+  private def safe_remote_ip(request)
+    request.remote_ip
+  rescue ActionDispatch::RemoteIp::IpSpoofAttackError
+    nil
+  end
+end
+```
+
+Register it in `config/application.rb`:
+
+```ruby
+require_relative "../app/middleware/error_dashboard_middleware"
+config.middleware.use ErrorDashboardMiddleware
+```
+
+### 2. Sidekiq Error Handler (background jobs)
+
+Add to your Sidekiq initializer to capture unhandled job errors:
+
+```ruby
+# config/initializers/sidekiq.rb
+Sidekiq.configure_server do |config|
+  config.error_handlers << proc { |e, context|
+    if ENV["ERROR_DASHBOARD_ENABLED"] == "true"
+      ErrorDashboardWorker.perform_async(
+        "error_type" => e.class.name,
+        "message" => e.message,
+        "backtrace" => Array(e.backtrace).first(50),
+        "severity" => "error",
+        "source" => "my-app",
+        "platform" => "ruby",
+        "metadata" => context.transform_keys(&:to_s)
+      )
+    end
+  }
+end
+```
+
+### 3. Background Worker
+
+Sends errors asynchronously to avoid blocking request threads:
+
+```ruby
+# app/workers/error_dashboard_worker.rb
+class ErrorDashboardWorker
+  include Sidekiq::Worker
+  sidekiq_options queue: :low_priority, retry: 3
+
+  def perform(error_params)
+    uri = URI("#{ENV['ERROR_DASHBOARD_URL']}/api/v1/errors")
+
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = uri.scheme == "https"
+    http.open_timeout = 5
+    http.read_timeout = 5
+
+    request = Net::HTTP::Post.new(uri.path)
+    request["Content-Type"] = "application/json"
+    request["Authorization"] = "Bearer #{ENV['ERROR_DASHBOARD_API_TOKEN']}"
+    request.body = { error: error_params }.to_json
+
+    response = http.request(request)
+    raise "Error Dashboard API returned #{response.code}" unless response.code.to_i < 400
+  end
+end
+```
+
+### Client Environment Variables
+
+| Variable | Description |
+|----------|-------------|
+| `ERROR_DASHBOARD_ENABLED` | Set to `"true"` to enable |
+| `ERROR_DASHBOARD_URL` | Dashboard base URL (e.g. `https://errors.example.com`) |
+| `ERROR_DASHBOARD_API_TOKEN` | Bearer token matching the dashboard's `API_BEARER_TOKEN` |
+
 ## Setup
 
 ### Local development

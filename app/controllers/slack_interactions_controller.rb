@@ -1,3 +1,5 @@
+require "net/http"
+
 # Handles Slack interactive component callbacks (button clicks, etc.)
 # Slack sends a POST with a JSON payload when a user clicks a button.
 class SlackInteractionsController < ApplicationController

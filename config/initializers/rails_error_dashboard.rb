@@ -18,3 +18,14 @@ RailsErrorDashboard.configure do |config|
   config.dashboard_base_url = ENV.fetch("DASHBOARD_BASE_URL", "https://error-dashboard.getonbrd.com")
   config.notification_cooldown_minutes = 15
 end
+
+# The gem's Slack payload builder calls error_log.user, which assumes a User
+# model and belongs_to association. Since this is a standalone app with no User
+# model, we add a no-op method so it returns nil gracefully.
+Rails.application.config.after_initialize do
+  RailsErrorDashboard::ErrorLog.class_eval do
+    def user
+      nil
+    end
+  end
+end

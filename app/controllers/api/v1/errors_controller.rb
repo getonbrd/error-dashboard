@@ -109,7 +109,7 @@ module Api
       def sanitize_metadata(metadata)
         return nil if metadata.blank?
 
-        metadata.to_h.except("_aj_serialized", "_aj_symbol_keys", "_aj_hash_with_indifferent_access")
+        metadata.to_unsafe_h.to_json
       end
     end
   end

@@ -14,28 +14,28 @@ A self-hosted error monitoring dashboard for Ruby/Rails applications. Built as a
 
 ```
 ┌─────────────────────┐
-│   Rails App          │
-│  (ErrorReporter +    │──── POST /api/v1/errors ────┐
-│   Sidekiq Worker)    │                              │
-└─────────────────────┘                              ▼
+│   Rails App         │
+│  (ErrorReporter +   │──── POST /api/v1/errors ────┐
+│   Sidekiq Worker)   │                             │
+└─────────────────────┘                             ▼
                                           ┌──────────────────────┐
                                           │  Error Dashboard     │
                                           │  (Rails 8)           │
                                           │                      │
                                           │  ┌────────────────┐  │
-                                          │  │ Web UI (Basic   │  │
-                                          │  │ Auth)           │  │
+                                          │  │ Web UI (Basic  │  │
+                                          │  │ Auth)          │  │
                                           │  ├────────────────┤  │
-                                          │  │ REST API        │  │
-                                          │  │ (Bearer Token)  │  │
+                                          │  │ REST API       │  │
+                                          │  │ (Bearer Token) │  │
                                           │  ├────────────────┤  │
-                                          │  │ Solid Queue     │  │
-                                          │  │ (async jobs)    │  │
+                                          │  │ Solid Queue    │  │
+                                          │  │ (async jobs)   │  │
                                           │  └────────────────┘  │
                                           │          │           │
                                           │          ▼           │
                                           │  ┌────────────────┐  │
-                                          │  │ PostgreSQL      │  │
+                                          │  │ PostgreSQL     │  │
                                           │  └────────────────┘  │
                                           └──────────┬───────────┘
                                                      │

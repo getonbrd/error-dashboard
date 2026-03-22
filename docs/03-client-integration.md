@@ -10,8 +10,6 @@ Exception occurs
        ▼
 ErrorReporter.notify(error, metadata:, severity:, context:)
        │
-       ├──▶ Bugsnag.notify()              [synchronous, always]
-       │
        └──▶ ErrorDashboardWorker           [async via Sidekiq]
                .perform_async(payload)
                        │
@@ -23,7 +21,7 @@ Errors are sent asynchronously through a Sidekiq worker to avoid impacting reque
 
 ## 1. ErrorReporter Module
 
-The central module for all error reporting. Handles dual-sending to both Bugsnag and the Error Dashboard.
+The central module for all error reporting.
 
 ```ruby
 # app/services/error_reporter.rb
@@ -31,7 +29,6 @@ module ErrorReporter
   module_function
 
   def notify(error, metadata: {}, severity: nil, context: {})
-    notify_bugsnag(error, severity: severity, context: context)
     notify_dashboard(error, metadata: metadata, severity: severity, context: context)
   rescue StandardError => e
     Rails.logger.error("[ErrorReporter] Failed to report error: #{e.message}")
@@ -254,37 +251,3 @@ class WebhooksController < ApplicationController
   end
 end
 ```
-
-## 7. Migrating from Bugsnag
-
-### Phase 1: Dual-Sending
-
-Keep Bugsnag active and send errors to both systems simultaneously. The `ErrorReporter.notify` method handles this — both `notify_bugsnag` and `notify_dashboard` are called on every error.
-
-### Phase 2: Replace Direct Bugsnag Calls
-
-Find and replace all direct `Bugsnag.notify` calls with `ErrorReporter.notify`:
-
-```ruby
-# Before
-Bugsnag.notify(error)
-Bugsnag.notify(error) do |report|
-  report.severity = "warning"
-  report.add_tab(:context, { user_id: user.id })
-end
-
-# After
-ErrorReporter.notify(error)
-ErrorReporter.notify(error,
-  severity: "warning",
-  context: { user_id: user.id }
-)
-```
-
-### Phase 3: Validate
-
-Run both systems in parallel. Compare error counts and types between Bugsnag and the Error Dashboard to verify nothing is missing.
-
-### Phase 4: Remove Bugsnag
-
-Once confident, remove the Bugsnag gem, delete `notify_bugsnag` from ErrorReporter, and remove the Bugsnag initializer.

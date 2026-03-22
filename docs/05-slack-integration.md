@@ -46,12 +46,12 @@ View in dashboard                                    ← Link to error detail pa
 
 ### Severity Indicators
 
-| Emoji | Priority Level | Meaning |
-|-------|---------------|---------|
-| 🔴 | 3+ | Critical |
-| 🟠 | 2 | High |
-| 🟡 | 1 | Medium |
-| ⚪ | 0 (default) | Low / Info |
+| Emoji   | Priority Level | Meaning |
+|-------- |---------------|---------|
+| 🔴 | 3  | Critical |
+| 🟠 | 2  | High |
+| 🟡 | 1  | Medium |
+| ⚪ | 0  (default) | Low / Info |
 
 ### Notification Cooldown
 

@@ -96,6 +96,16 @@ Rails.application.config.after_initialize do
         }
       end
 
+      def message_block(error_log)
+        {
+          type: "section",
+          text: {
+            type: "mrkdwn",
+            text: "```#{RailsErrorDashboard::Services::NotificationHelpers.truncate_message(error_log.message)}```"
+          }
+        }
+      end
+
       def fields_block(_error_log)
         nil
       end

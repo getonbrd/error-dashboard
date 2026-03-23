@@ -87,7 +87,7 @@ Rails.application.config.after_initialize do
 
       # First line of the stacktrace
       def stacktrace_block(error_log)
-        bt = error_log.backtrace_frames
+        bt = parse_backtrace(error_log.backtrace)
         first_line = bt.find { |l| l.include?("app/") } || bt.first
         return nil unless first_line.present?
 
@@ -133,6 +133,17 @@ Rails.application.config.after_initialize do
         when 2 then ":large_orange_circle:"
         when 1 then ":yellow_circle:"
         else ":white_circle:"
+        end
+      end
+
+      def parse_backtrace(bt)
+        return [] if bt.blank?
+        return bt if bt.is_a?(Array)
+
+        if bt.strip.start_with?("[")
+          JSON.parse(bt) rescue bt.split("\n")
+        else
+          bt.split("\n")
         end
       end
 

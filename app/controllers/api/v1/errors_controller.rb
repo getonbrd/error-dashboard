@@ -57,7 +57,7 @@ module Api
         params.require(:error).permit(
           :error_type, :message, :severity, :platform, :source,
           :app_version, :user_id, :request_url, :ip_address,
-          :user_agent, :occurred_at, :handled,
+          :user_agent, :occurred_at, :handled, :user_type,
           backtrace: [], metadata: {}
         )
       end
@@ -76,7 +76,8 @@ module Api
           first_seen_at: error.first_seen_at,
           last_seen_at: error.last_seen_at,
           occurred_at: error.occurred_at,
-          handled: error.try(:handled)
+          handled: error.try(:handled),
+          user_type: error.try(:user_type)
         }
 
         if detailed
@@ -107,9 +108,12 @@ module Api
           source: permitted_params[:source]
         )
 
-        # Set handled flag (not supported by the gem, so we set it directly)
-        if error_log && permitted_params.key?(:handled)
-          error_log.update_column(:handled, ActiveModel::Type::Boolean.new.cast(permitted_params[:handled]))
+        # Set custom fields not supported by the gem
+        if error_log
+          updates = {}
+          updates[:handled] = ActiveModel::Type::Boolean.new.cast(permitted_params[:handled]) if permitted_params.key?(:handled)
+          updates[:user_type] = permitted_params[:user_type] if permitted_params[:user_type].present?
+          error_log.update_columns(updates) if updates.any?
         end
 
         error_log

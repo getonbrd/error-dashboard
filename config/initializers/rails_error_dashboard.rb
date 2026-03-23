@@ -81,7 +81,12 @@ Rails.application.config.after_initialize do
         if error_log.respond_to?(:handled) && !error_log.handled.nil?
           parts << (error_log.handled ? ":white_check_mark: Handled" : ":warning: Unhandled")
         end
-        parts << (error_log.user_id.present? ? ":bust_in_silhouette: User ##{error_log.user_id}" : ":ghost: Anonymous")
+        if error_log.user_id.present?
+          label = user_type_label(error_log)
+          parts << ":bust_in_silhouette: #{label} ##{error_log.user_id}"
+        else
+          parts << ":ghost: Anonymous"
+        end
         {
           type: "context",
           elements: [{ type: "mrkdwn", text: parts.join("  ·  ") }]
@@ -136,6 +141,14 @@ Rails.application.config.after_initialize do
         when 2 then ":large_orange_circle:"
         when 1 then ":yellow_circle:"
         else ":white_circle:"
+        end
+      end
+
+      def user_type_label(error_log)
+        case error_log.try(:user_type)
+        when "webpro" then "Webpro"
+        when "team_member" then "Team Member"
+        else "User"
         end
       end
 

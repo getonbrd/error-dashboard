@@ -44,8 +44,20 @@ RSpec.describe RailsErrorDashboard::Services::SlackPayloadBuilder do
     end
 
     it "shows user info in info block" do
-      info = payload[:blocks].find { |b| b[:type] == "context" && b[:elements]&.first&.dig(:text)&.include?("User") }
+      info = payload[:blocks].find { |b| b[:type] == "context" && b[:elements]&.first&.dig(:text)&.include?("#42") }
       expect(info[:elements].first[:text]).to include("User #42")
+    end
+
+    it "shows Webpro label when user_type is webpro" do
+      error_log.update_column(:user_type, "webpro")
+      info = payload[:blocks].find { |b| b[:type] == "context" && b[:elements]&.first&.dig(:text)&.include?("Webpro") }
+      expect(info[:elements].first[:text]).to include("Webpro #42")
+    end
+
+    it "shows Team Member label when user_type is team_member" do
+      error_log.update_column(:user_type, "team_member")
+      info = payload[:blocks].find { |b| b[:type] == "context" && b[:elements]&.first&.dig(:text)&.include?("Team Member") }
+      expect(info[:elements].first[:text]).to include("Team Member #42")
     end
 
     it "includes request URL" do

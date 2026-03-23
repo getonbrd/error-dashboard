@@ -43,6 +43,33 @@ Rails.application.config.after_initialize do
     end
   end
 
+  # Apply custom fields (handled, user_type) after the async job creates the
+  # ErrorLog record. The controller threads _custom_fields through the context
+  # hash which flows from LogError.call → call_async → AsyncErrorLoggingJob.
+  RailsErrorDashboard::AsyncErrorLoggingJob.class_eval do
+    def perform(exception_data, context)
+      exception_data = exception_data.symbolize_keys if exception_data.respond_to?(:symbolize_keys)
+      context = context.symbolize_keys if context.respond_to?(:symbolize_keys)
+
+      custom_fields = context.delete(:_custom_fields)
+
+      exception = reconstruct_exception(exception_data)
+
+      if exception_data[:cause_chain]
+        context[:_serialized_cause_chain] = exception_data[:cause_chain]
+      end
+
+      error_log = RailsErrorDashboard::Commands::LogError.new(exception, context).call
+
+      if error_log && custom_fields.present?
+        error_log.update_columns(custom_fields.symbolize_keys)
+      end
+    rescue => e
+      Rails.logger.error("AsyncErrorLoggingJob failed: #{e.message}")
+      Rails.logger.error("Backtrace: #{e.backtrace&.first(5)&.join("\n")}")
+    end
+  end
+
   # Remove "Error ID:" context block from Slack notifications
   # and add "Resolve" button
   RailsErrorDashboard::Services::SlackPayloadBuilder.class_eval do

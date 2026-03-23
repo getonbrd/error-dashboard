@@ -92,31 +92,32 @@ module Api
       end
 
       def report_error(permitted_params)
-        error_log = RailsErrorDashboard::ManualErrorReporter.report(
+        custom_fields = {}
+        custom_fields[:handled] = ActiveModel::Type::Boolean.new.cast(permitted_params[:handled]) if permitted_params.key?(:handled)
+        custom_fields[:user_type] = permitted_params[:user_type] if permitted_params[:user_type].present?
+
+        backtrace = Array(permitted_params[:backtrace])
+        exception = RailsErrorDashboard::ManualErrorReporter::SyntheticException.new(
           error_type: permitted_params[:error_type],
           message: permitted_params[:message],
-          backtrace: permitted_params[:backtrace],
-          platform: permitted_params[:platform],
+          backtrace: backtrace
+        )
+
+        context = {
+          source: permitted_params[:source] || "manual",
           user_id: permitted_params[:user_id],
           request_url: permitted_params[:request_url],
           user_agent: permitted_params[:user_agent],
           ip_address: permitted_params[:ip_address],
+          platform: permitted_params[:platform],
           app_version: permitted_params[:app_version],
           metadata: sanitize_metadata(permitted_params[:metadata]),
-          occurred_at: permitted_params[:occurred_at],
+          occurred_at: permitted_params[:occurred_at] || Time.current,
           severity: permitted_params[:severity]&.to_sym,
-          source: permitted_params[:source]
-        )
+          _custom_fields: custom_fields.presence
+        }.compact
 
-        # Set custom fields not supported by the gem
-        if error_log
-          updates = {}
-          updates[:handled] = ActiveModel::Type::Boolean.new.cast(permitted_params[:handled]) if permitted_params.key?(:handled)
-          updates[:user_type] = permitted_params[:user_type] if permitted_params[:user_type].present?
-          error_log.update_columns(updates) if updates.any?
-        end
-
-        error_log
+        RailsErrorDashboard::Commands::LogError.call(exception, context)
       end
 
       def sanitize_metadata(metadata)

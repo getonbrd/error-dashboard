@@ -34,7 +34,7 @@ RSpec.describe "Api::V1::Errors", type: :request do
 
   describe "GET /api/v1/errors" do
     before do
-      allow(RailsErrorDashboard::ManualErrorReporter).to receive(:report).and_return(nil)
+      allow(RailsErrorDashboard::Commands::LogError).to receive(:call).and_return(nil)
     end
 
     let!(:application) { RailsErrorDashboard::Application.find_or_create_by!(name: "getonbrd") }
@@ -117,7 +117,7 @@ RSpec.describe "Api::V1::Errors", type: :request do
   describe "POST /api/v1/errors" do
     context "with valid token" do
       it "returns 201 accepted" do
-        allow(RailsErrorDashboard::ManualErrorReporter).to receive(:report)
+        allow(RailsErrorDashboard::Commands::LogError).to receive(:call)
 
         post "/api/v1/errors", params: valid_error.to_json, headers: headers
 
@@ -125,28 +125,27 @@ RSpec.describe "Api::V1::Errors", type: :request do
         expect(JSON.parse(response.body)["status"]).to eq("accepted")
       end
 
-      it "calls ManualErrorReporter with correct params" do
-        expect(RailsErrorDashboard::ManualErrorReporter).to receive(:report).with(
-          error_type: "NoMethodError",
-          message: "undefined method 'foo' for nil",
-          backtrace: ["app/models/user.rb:42:in 'process'"],
-          platform: "ruby",
-          user_id: "42",
-          request_url: "/jobs/123",
-          user_agent: "Mozilla/5.0",
-          ip_address: "1.2.3.4",
-          app_version: "sha-abc1234",
-          metadata: '{"controller":"jobs","action":"show"}',
-          occurred_at: nil,
-          severity: :error,
-          source: "getonbrd"
+      it "calls LogError with correct params" do
+        expect(RailsErrorDashboard::Commands::LogError).to receive(:call).with(
+          an_instance_of(RailsErrorDashboard::ManualErrorReporter::SyntheticException),
+          hash_including(
+            source: "getonbrd",
+            user_id: "42",
+            request_url: "/jobs/123",
+            user_agent: "Mozilla/5.0",
+            ip_address: "1.2.3.4",
+            platform: "ruby",
+            app_version: "sha-abc1234",
+            metadata: '{"controller":"jobs","action":"show"}',
+            severity: :error
+          )
         )
 
         post "/api/v1/errors", params: valid_error.to_json, headers: headers
       end
 
       it "accepts minimal params" do
-        allow(RailsErrorDashboard::ManualErrorReporter).to receive(:report)
+        allow(RailsErrorDashboard::Commands::LogError).to receive(:call)
 
         post "/api/v1/errors",
           params: { error: { error_type: "TestError", message: "test" } }.to_json,
@@ -191,7 +190,7 @@ RSpec.describe "Api::V1::Errors", type: :request do
   describe "POST /api/v1/errors/batch" do
     context "with valid token" do
       it "returns 201 with count" do
-        allow(RailsErrorDashboard::ManualErrorReporter).to receive(:report)
+        allow(RailsErrorDashboard::Commands::LogError).to receive(:call)
 
         post "/api/v1/errors/batch",
           params: {
@@ -207,8 +206,8 @@ RSpec.describe "Api::V1::Errors", type: :request do
         expect(body["total"]).to eq(2)
       end
 
-      it "calls ManualErrorReporter for each error" do
-        expect(RailsErrorDashboard::ManualErrorReporter).to receive(:report).twice
+      it "calls LogError for each error" do
+        expect(RailsErrorDashboard::Commands::LogError).to receive(:call).twice
 
         post "/api/v1/errors/batch",
           params: {

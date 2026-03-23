@@ -217,6 +217,21 @@ Rails.application.config.after_initialize do
             deny: { type: "plain_text", text: "Cancel" }
           }
         }
+        block[:elements] << {
+          type: "button",
+          text: {
+            type: "plain_text",
+            text: "Mute",
+            emoji: true
+          },
+          action_id: "mute_error_#{error_log.id}",
+          confirm: {
+            title: { type: "plain_text", text: "Mute notifications?" },
+            text: { type: "mrkdwn", text: "Stop notifications for *#{error_log.error_type}*? The error will still be tracked in the dashboard." },
+            confirm: { type: "plain_text", text: "Mute" },
+            deny: { type: "plain_text", text: "Cancel" }
+          }
+        }
         block
       end
     end

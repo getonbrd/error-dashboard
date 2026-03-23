@@ -14,6 +14,8 @@ class SlackInteractionsController < ApplicationController
     case action&.dig("action_id")
     when /^resolve_error_(\d+)$/
       resolve_error($1.to_i, payload)
+    when /^mute_error_(\d+)$/
+      mute_error($1.to_i, payload)
     else
       head :ok
     end
@@ -50,6 +52,47 @@ class SlackInteractionsController < ApplicationController
             type: "context",
             elements: [
               { type: "mrkdwn", text: ":white_check_mark: *Resolved* by #{user_mention}" }
+            ]
+          }
+        ]
+      else
+        [block]
+      end
+    end
+
+    replace_original_message(payload, updated_blocks)
+  end
+
+  def mute_error(error_id, payload)
+    error = RailsErrorDashboard::ErrorLog.find_by(id: error_id)
+
+    unless error
+      respond_to_slack(payload, "Error ##{error_id} not found.")
+      return
+    end
+
+    if error.muted?
+      respond_to_slack(payload, "Already muted.")
+      return
+    end
+
+    username = payload.dig("user", "username") || "someone"
+    RailsErrorDashboard::Commands::MuteError.call(error_id, muted_by: username, reason: "Muted from Slack")
+
+    user_mention = "@#{username}"
+
+    # Replace the Mute button with a muted label
+    original_blocks = payload.dig("message", "blocks") || []
+    updated_blocks = original_blocks.flat_map do |block|
+      if block["type"] == "actions"
+        # Keep View Source and Resolve buttons, remove Mute button
+        remaining = block["elements"]&.reject { |e| e["action_id"]&.start_with?("mute_error_") } || []
+        [
+          { type: "actions", elements: remaining },
+          {
+            type: "context",
+            elements: [
+              { type: "mrkdwn", text: ":bell_slash: *Muted* by #{user_mention}" }
             ]
           }
         ]

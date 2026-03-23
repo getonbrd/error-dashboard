@@ -183,6 +183,28 @@ RSpec.describe RailsErrorDashboard::Services::SlackPayloadBuilder do
     end
   end
 
+  context "handled/unhandled label" do
+    let(:backtrace) { "app/test.rb:1" }
+
+    it "shows Unhandled for handled: false" do
+      error_log.update_column(:handled, false)
+      info = payload[:blocks].find { |b| b[:type] == "context" && b[:elements]&.first&.dig(:text)&.include?("Unhandled") }
+      expect(info).to be_present
+    end
+
+    it "shows Handled for handled: true" do
+      error_log.update_column(:handled, true)
+      info = payload[:blocks].find { |b| b[:type] == "context" && b[:elements]&.first&.dig(:text)&.include?("Handled") }
+      expect(info).to be_present
+    end
+
+    it "shows no label when handled is nil" do
+      error_log.update_column(:handled, nil)
+      info = payload[:blocks].find { |b| b[:type] == "context" && b[:elements]&.first&.dig(:text)&.match?(/Handled|Unhandled/) }
+      expect(info).to be_nil
+    end
+  end
+
   context "dashboard link" do
     let(:backtrace) { "app/test.rb:1" }
 

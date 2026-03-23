@@ -11,6 +11,7 @@ module Api
         errors = errors.where(platform: params[:platform]) if params[:platform].present?
         errors = errors.where(resolved: params[:resolved] == "true") if params[:resolved].present?
         errors = errors.where(priority_level: params[:priority_level]) if params[:priority_level].present?
+        errors = errors.where(handled: params[:handled] == "true") if params[:handled].present?
 
         page = (params[:page] || 1).to_i
         per_page = [(params[:per_page] || 25).to_i, 100].min
@@ -56,7 +57,7 @@ module Api
         params.require(:error).permit(
           :error_type, :message, :severity, :platform, :source,
           :app_version, :user_id, :request_url, :ip_address,
-          :user_agent, :occurred_at,
+          :user_agent, :occurred_at, :handled,
           backtrace: [], metadata: {}
         )
       end
@@ -74,7 +75,8 @@ module Api
           occurrence_count: error.occurrence_count,
           first_seen_at: error.first_seen_at,
           last_seen_at: error.last_seen_at,
-          occurred_at: error.occurred_at
+          occurred_at: error.occurred_at,
+          handled: error.try(:handled)
         }
 
         if detailed
@@ -89,7 +91,7 @@ module Api
       end
 
       def report_error(permitted_params)
-        RailsErrorDashboard::ManualErrorReporter.report(
+        error_log = RailsErrorDashboard::ManualErrorReporter.report(
           error_type: permitted_params[:error_type],
           message: permitted_params[:message],
           backtrace: permitted_params[:backtrace],
@@ -104,6 +106,13 @@ module Api
           severity: permitted_params[:severity]&.to_sym,
           source: permitted_params[:source]
         )
+
+        # Set handled flag (not supported by the gem, so we set it directly)
+        if error_log && permitted_params.key?(:handled)
+          error_log.update_column(:handled, ActiveModel::Type::Boolean.new.cast(permitted_params[:handled]))
+        end
+
+        error_log
       end
 
       def sanitize_metadata(metadata)

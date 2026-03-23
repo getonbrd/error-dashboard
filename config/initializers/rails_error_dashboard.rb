@@ -74,10 +74,13 @@ Rails.application.config.after_initialize do
         }
       end
 
-      # Occurrences, user status, severity in one compact line
+      # Occurrences, handled/unhandled, user in one compact line
       def info_block(error_log)
         parts = []
         parts << ":repeat: *#{error_log.occurrence_count}x*" if error_log.occurrence_count > 1
+        if error_log.respond_to?(:handled) && !error_log.handled.nil?
+          parts << (error_log.handled ? ":white_check_mark: Handled" : ":warning: Unhandled")
+        end
         parts << (error_log.user_id.present? ? ":bust_in_silhouette: User ##{error_log.user_id}" : ":ghost: Anonymous")
         {
           type: "context",

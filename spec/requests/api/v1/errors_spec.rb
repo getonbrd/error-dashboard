@@ -136,7 +136,7 @@ RSpec.describe "Api::V1::Errors", type: :request do
           user_agent: "Mozilla/5.0",
           ip_address: "1.2.3.4",
           app_version: "sha-abc1234",
-          metadata: { "controller" => "jobs", "action" => "show" },
+          metadata: '{"controller":"jobs","action":"show"}',
           occurred_at: nil,
           severity: :error,
           source: "getonbrd"

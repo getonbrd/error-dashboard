@@ -61,6 +61,22 @@ class SlackInteractionsController < ApplicationController
     replace_original_message(payload, updated_blocks)
   end
 
+  def respond_to_slack(payload, text)
+    response_url = payload["response_url"]
+    return head :ok unless response_url
+
+    uri = URI(response_url)
+    http = Net::HTTP.new(uri.host, uri.port)
+    http.use_ssl = true
+
+    request = Net::HTTP::Post.new(uri.path)
+    request["Content-Type"] = "application/json"
+    request.body = { replace_original: false, text: text }.to_json
+
+    http.request(request)
+    head :ok
+  end
+
   def replace_original_message(payload, blocks)
     response_url = payload["response_url"]
     return head :ok unless response_url

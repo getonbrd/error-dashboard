@@ -145,11 +145,8 @@ Rails.application.config.after_initialize do
       end
 
       def user_type_label(error_log)
-        case error_log.try(:user_type)
-        when "webpro" then "Webpro"
-        when "team_member" then "Team Member"
-        else "User"
-        end
+        type = error_log.try(:user_type)
+        type.present? ? type.humanize.titleize : "User"
       end
 
       def parse_backtrace(bt)

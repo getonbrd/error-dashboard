@@ -48,16 +48,21 @@ RSpec.describe RailsErrorDashboard::Services::SlackPayloadBuilder do
       expect(info[:elements].first[:text]).to include("User #42")
     end
 
-    it "shows Webpro label when user_type is webpro" do
+    it "humanizes user_type in the label" do
       error_log.update_column(:user_type, "webpro")
       info = payload[:blocks].find { |b| b[:type] == "context" && b[:elements]&.first&.dig(:text)&.include?("Webpro") }
       expect(info[:elements].first[:text]).to include("Webpro #42")
     end
 
-    it "shows Team Member label when user_type is team_member" do
+    it "titleizes multi-word user_type" do
       error_log.update_column(:user_type, "team_member")
       info = payload[:blocks].find { |b| b[:type] == "context" && b[:elements]&.first&.dig(:text)&.include?("Team Member") }
       expect(info[:elements].first[:text]).to include("Team Member #42")
+    end
+
+    it "falls back to User when user_type is nil" do
+      info = payload[:blocks].find { |b| b[:type] == "context" && b[:elements]&.first&.dig(:text)&.include?("User #42") }
+      expect(info).to be_present
     end
 
     it "includes request URL" do

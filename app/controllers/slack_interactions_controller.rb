@@ -71,7 +71,8 @@ class SlackInteractionsController < ApplicationController
 
     request = Net::HTTP::Post.new(uri.path)
     request["Content-Type"] = "application/json"
-    request.body = { replace_original: false, text: text }.to_json
+    thread_ts = payload.dig("message", "ts")
+    request.body = { replace_original: false, response_type: "in_channel", text: text, thread_ts: thread_ts }.compact.to_json
 
     http.request(request)
     head :ok

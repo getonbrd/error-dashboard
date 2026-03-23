@@ -87,11 +87,7 @@ Rails.application.config.after_initialize do
 
       # First line of the stacktrace
       def stacktrace_block(error_log)
-        bt = error_log.backtrace
-        if bt.is_a?(String)
-          bt = (JSON.parse(bt) rescue bt.split("\n"))
-        end
-        bt = Array(bt)
+        bt = error_log.backtrace_frames
         first_line = bt.find { |l| l.include?("app/") } || bt.first
         return nil unless first_line.present?
 

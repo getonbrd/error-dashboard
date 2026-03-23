@@ -8,7 +8,7 @@ gem "propshaft"
 gem "pg", "~> 1.1"
 # Use the Puma web server [https://github.com/puma/puma]
 gem "puma", ">= 5.0"
-gem "rails_error_dashboard"
+gem "rails_error_dashboard", github: "j4rs/rails_error_dashboard", branch: "feature/mute-errors"
 gem "solid_queue"
 gem "mission_control-jobs"
 
